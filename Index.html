@@ -3,30 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sovereign Mobile</title>
+    <title>Sovereign Chameleon</title>
     <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
-        :root { --neon: #00ff88; --mcp: #00ccff; --bg: #050505; }
-        * { box-sizing: border-box; touch-action: manipulation; }
-        body { margin: 0; background: var(--bg); color: var(--neon); font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        :root { --neon: #00ff88; --mcp: #00ccff; --bg: #050505; --node: #00ff88; }
+        * { box-sizing: border-box; touch-action: manipulation; transition: background 0.5s, border-color 0.5s; }
+        body { margin: 0; background: var(--bg); color: var(--neon); font-family: 'Courier New', monospace; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        /* THE PICTURE (Top 40%) */
-        #visual-field { height: 40vh; width: 100%; border-bottom: 2px solid #222; background: #000; }
+        #visual-field { height: 45vh; width: 100%; border-bottom: 2px solid #222; background: #000; position: relative; }
+        #interface { flex: 1; display: flex; flex-direction: column; padding: 15px; background: var(--bg); overflow-y: auto; border-top: 1px solid #333; }
         
-        /* CONTROLS (Bottom 60%) */
-        #interface { flex: 1; display: flex; flex-direction: column; padding: 15px; background: #0a0a0a; overflow-y: auto; }
-        
-        .nav { display: flex; gap: 10px; margin-bottom: 10px; }
-        button { flex: 1; background: #111; border: 1px solid var(--neon); color: var(--neon); padding: 12px; font-weight: bold; border-radius: 8px; opacity: 0.5; pointer-events: none; }
-        button.active { opacity: 1; pointer-events: auto; }
-        button:active { background: var(--neon); color: #000; }
+        .nav { display: flex; gap: 8px; margin-bottom: 10px; }
+        button { flex: 1; background: #111; border: 2px solid var(--neon); color: var(--neon); padding: 14px; font-weight: bold; border-radius: 10px; font-size: 12px; }
+        button:active { background: var(--neon); color: var(--bg); transform: scale(0.95); }
 
-        #terminal { flex: 1; background: #000; border: 1px solid #222; padding: 10px; font-family: monospace; font-size: 11px; overflow-y: auto; margin-bottom: 10px; color: #fff; border-radius: 5px; min-height: 100px; }
+        #terminal { flex: 1; background: rgba(0,0,0,0.8); border: 1px solid #222; padding: 10px; font-size: 11px; overflow-y: auto; margin-bottom: 10px; color: #fff; border-radius: 8px; min-height: 120px; }
         
-        .upload-zone { border: 2px dashed var(--mcp); padding: 20px; text-align: center; color: var(--mcp); font-size: 12px; margin-bottom: 10px; border-radius: 8px; }
-        input[type="text"] { background: #000; border: 1px solid var(--neon); color: #fff; padding: 15px; border-radius: 8px; font-size: 16px; width: 100%; }
+        .upload-zone { border: 2px dashed var(--mcp); padding: 15px; text-align: center; color: var(--mcp); font-size: 11px; margin-bottom: 10px; border-radius: 10px; }
+        input[type="text"] { background: #000; border: 2px solid var(--neon); color: #fff; padding: 16px; border-radius: 10px; font-size: 16px; width: 100%; outline: none; }
     </style>
 </head>
 <body>
@@ -35,53 +31,71 @@
 
 <div id="interface">
     <div class="nav">
-        <button id="back-btn" onclick="System.goBack()">⏪ BACK</button>
-        <button id="evolve-btn" onclick="System.evolve()">💾 EVOLVE</button>
+        <button onclick="System.goBack()">⏪ BACK</button>
+        <button onclick="System.evolve()">💾 EVOLVE</button>
     </div>
 
     <div class="upload-zone" onclick="document.getElementById('file-in').click()">
-        📂 TAP TO UPLOAD BRAIN / BOOK / ZIP
+        🧬 TAP TO INGEST BRAIN / BOOK / EVOLUTION
         <input type="file" id="file-in" hidden multiple onchange="System.handleFiles(this.files)">
     </div>
 
-    <div id="terminal">Initializing Dual-Brain...</div>
-    
-    <input type="text" id="mcp-input" placeholder="Awaiting Handshake..." onkeypress="if(event.key==='Enter') System.chat()">
+    <div id="terminal">> Awaiting Sovereign Boot...</div>
+    <input type="text" id="mcp-input" placeholder="Type 'Theme Cosmic' or chat..." onkeypress="if(event.key==='Enter') System.chat()">
 </div>
 
 <script>
-let pyodide, nodes = [{id: "CORE", color: "#00ccff", size: 15}], links = [];
+let pyodide, nodes = [{id: "CORE", color: "var(--mcp)", size: 18}], links = [];
+const themes = {
+    venom: { main: "#00ff44", accent: "#7700ff", bg: "#0a0510" },
+    echo: { main: "#ffffff", accent: "#555555", bg: "#111111" },
+    paisley: { main: "#ff66b2", accent: "#ffcc00", bg: "#330033" },
+    cosmic: { main: "#00ccff", accent: "#ff00ff", bg: "#000022" }
+};
 
 const System = {
     async boot() {
-        try {
-            pyodide = await loadPyodide();
-            this.log("✅ Brain Active. Handshake confirmed.");
-            // ACTIVATE BUTTONS
-            document.querySelectorAll('button').forEach(b => b.classList.add('active'));
-            document.getElementById('mcp-input').placeholder = "Chat with the field...";
-            this.initGraph();
-        } catch (e) { this.log("❌ Error: Check connection."); }
+        this.log("Synchronizing Dual-Brain...");
+        pyodide = await loadPyodide();
+        this.log("✅ Ready. Use 'Theme [Name]' to shift.");
+        this.initGraph();
     },
 
-    handleFiles(files) {
+    setTheme(name) {
+        const t = themes[name.toLowerCase()];
+        if (!t) return;
+        document.documentElement.style.setProperty('--neon', t.main);
+        document.documentElement.style.setProperty('--mcp', t.accent);
+        document.documentElement.style.setProperty('--bg', t.bg);
+        if (window.navigator.vibrate) window.navigator.vibrate([50, 30, 50]);
+        this.log(`🎨 DIMENSION SHIFT: ${name.toUpperCase()}`);
+        this.render();
+    },
+
+    async handleFiles(files) {
         for (let f of files) {
-            this.log(`Ingesting: ${f.name}`);
-            nodes.push({id: f.name, color: "#00ff88", size: 10});
+            this.log(`Reading: ${f.name}`);
+            if (window.navigator.vibrate) window.navigator.vibrate(20);
+            nodes.push({id: f.name, color: "var(--neon)", size: 10});
             links.push({source: "CORE", target: f.name});
-            this.render();
         }
+        this.render();
     },
 
     async chat() {
         const input = document.getElementById('mcp-input');
-        if(!input.value) return;
-        this.log(`👤: ${input.value}`);
-        // Visual thought node
-        const tid = "T-"+Date.now();
-        nodes.push({id: tid, color: "#fff", size: 6});
-        links.push({source: "CORE", target: tid});
-        this.render();
+        const val = input.value.trim();
+        if(!val) return;
+        
+        this.log(`👤: ${val}`);
+        if(val.toLowerCase().startsWith("theme ")) {
+            this.setTheme(val.split(" ")[1]);
+        } else {
+            const tid = "Thought-"+Date.now();
+            nodes.push({id: tid, color: "#fff", size: 6});
+            links.push({source: "CORE", target: tid});
+            this.render();
+        }
         input.value = "";
     },
 
@@ -94,14 +108,14 @@ const System = {
     initGraph() { this.svg = d3.select("#canvas"); this.render(); },
 
     render() {
-        const w = window.innerWidth, h = window.innerHeight * 0.4;
+        const w = window.innerWidth, h = window.innerHeight * 0.45;
         this.svg.selectAll("*").remove();
         const sim = d3.forceSimulation(nodes)
-            .force("link", d3.forceLink(links).id(d => d.id).distance(60))
-            .force("charge", d3.forceManyBody().strength(-150))
+            .force("link", d3.forceLink(links).id(d => d.id).distance(80))
+            .force("charge", d3.forceManyBody().strength(-200))
             .force("center", d3.forceCenter(w / 2, h / 2));
 
-        const link = this.svg.append("g").selectAll("line").data(links).enter().append("line").attr("stroke", "#333");
+        const link = this.svg.append("g").selectAll("line").data(links).enter().append("line").attr("stroke", "#444").attr("stroke-width", 1.5);
         const node = this.svg.append("g").selectAll("circle").data(nodes).enter().append("circle")
             .attr("r", d => d.size).attr("fill", d => d.color)
             .call(d3.drag().on("start", (e, d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
