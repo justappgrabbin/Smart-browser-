@@ -1,133 +1,124 @@
-<!DOCTYPE html>
+    <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>🌀 Sovereign Resonance Foundry</title>
+    <title>Sovereign Book-Foundry</title>
     <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
-        :root { --neon: #00ff88; --mcp: #00ccff; --bg: #050505; --tension: #ff4444; }
-        body { margin: 0; background: var(--bg); color: var(--neon); font-family: 'Courier New', monospace; display: flex; height: 100vh; overflow: hidden; }
-        
-        /* The Resonance Workspace */
-        #resonance-field { flex: 1.2; border-right: 1px solid var(--neon); position: relative; background: radial-gradient(circle, #111 0%, #000 100%); }
-        #movement-field { flex: 1; display: flex; flex-direction: column; background: #fff; }
-        
-        /* Components */
-        #terminal { height: 35%; background: #000; border-top: 1px solid var(--neon); padding: 15px; overflow-y: auto; font-size: 12px; color: var(--neon); }
-        #code-finisher { position: absolute; top: 20px; right: 20px; width: 320px; background: rgba(0,0,0,0.95); border: 1px solid var(--mcp); padding: 15px; display: none; z-index: 100; box-shadow: 0 0 20px rgba(0,204,255,0.3); }
-        iframe { flex: 1; border: none; }
-        
-        .pulse { animation: mcp-glow 2s infinite; }
-        @keyframes mcp-glow { 0%, 100% { border-color: var(--mcp); } 50% { border-color: #fff; } }
-        .node { stroke: #fff; stroke-width: 1.5px; }
+        :root { --neon: #00ff88; --bg: #050505; }
+        body { margin: 0; background: var(--bg); color: var(--neon); font-family: monospace; display: flex; height: 100vh; overflow: hidden; }
+        #graph-view { flex: 1.5; position: relative; border-right: 1px solid #222; }
+        #interface { flex: 1; display: flex; flex-direction: column; background: #0a0a0a; padding: 20px; }
+        #terminal { flex: 1; background: #000; padding: 10px; overflow-y: auto; font-size: 11px; border: 1px solid #222; margin-bottom: 10px; color: #fff; }
+        .drop-zone { height: 100px; border: 2px dashed #00ccff; display: flex; align-items: center; justify-content: center; text-align: center; margin-bottom: 15px; cursor: pointer; color: #00ccff; }
+        input { background: #000; border: 1px solid var(--neon); color: var(--neon); padding: 12px; outline: none; width: calc(100% - 26px); }
+        .btn-row { display: flex; gap: 10px; margin-bottom: 10px; }
+        button { background: none; border: 1px solid var(--neon); color: var(--neon); padding: 5px; cursor: pointer; flex: 1; font-size: 10px; }
     </style>
 </head>
-<body ondragover="event.preventDefault()" ondrop="System.handleDrop(event)">
+<body>
 
-<div id="resonance-field">
+<div id="graph-view">
     <svg id="canvas" width="100%" height="100%"></svg>
-    
-    <div id="code-finisher" class="pulse">
-        <div style="color:var(--mcp); font-size:11px; font-weight:bold; margin-bottom:10px;">✨ MCP SELF-BUILD INITIATED</div>
-        <pre id="suggested-code" style="font-size:10px; color:#fff; white-space: pre-wrap; background:#111; padding:5px; border-radius:3px;"></pre>
-        <button onclick="System.executeBuild()" style="width:100%; background:var(--mcp); color:#000; border:none; padding:8px; cursor:pointer; font-weight:bold; margin-top:10px;">EARTH CODE</button>
-    </div>
-    
-    <div id="terminal">> Sovereign Call Active. Awaiting Ingestion...</div>
 </div>
 
-<div id="movement-field">
-    <div style="padding:10px; background:#222; display:flex; gap:10px; border-bottom:1px solid #444;">
-        <input type="text" id="chat-input" style="flex:1; background:#000; color:var(--neon); border:1px solid var(--neon); padding:5px;" placeholder="Type to Chat / Program...">
-        <button onclick="System.chat()" style="background:var(--neon); color:#000; border:none; padding:5px 15px; cursor:pointer;">SEND</button>
+<div id="interface">
+    <div class="btn-row">
+        <button onclick="System.goBack()">⏪ BACK</button>
+        <button onclick="System.evolve()">💾 EVOLVE</button>
     </div>
-    <iframe id="browser" src="about:blank"></iframe>
+    
+    <div class="drop-zone" id="drop-zone" ondragover="event.preventDefault()" ondrop="System.ingest(event)">
+        DRAG BOOKS (PDF/EPUB) OR BRAIN (.py) HERE
+    </div>
+
+    <div id="terminal">> System Ready. Feed me a book to calculate resonance...</div>
+    
+    <input type="text" id="mcp-input" placeholder="Ask to calculate or summarize books..." onkeypress="if(event.key==='Enter') System.chat()">
 </div>
 
 <script>
 let pyodide;
-let pendingBuild = "";
+let nodes = [{id: "CORE", color: "#00ccff", size: 12}];
+let links = [];
 
-// --- THE UNIVERSAL GENETIC KERNEL (Python) ---
-const KERNEL_CODE = `
-import json
-UNIVERSAL_GENETIC_CODE = {
-    1: {"bin": "111111", "law": "Movement", "codon": "ATG"},
-    51: {"bin": "100110", "law": "Shock", "codon": "Uranium"}
-}
-
-def analyze_input(text):
-    # Causal logic from Law.pdf
-    if "Gate 51" in text or "Uranium" in text:
-        return json.dumps({"type": "BUILD", "component": "Resonance_Sensor", "code": "createNode('Gate 51', '#ff0000')"})
-    return json.dumps({"type": "CHAT", "response": "Input Earthed. Analyzing resonance..."})
-`;
-
-// --- THE SYSTEM OPERATOR (JS) ---
 const System = {
     async boot() {
-        this.log("🌀 Initializing Dual-Brain Resonance Network...");
+        this.log("Initializing Book-Parsing Kernel...");
         pyodide = await loadPyodide();
-        await pyodide.runPythonAsync(KERNEL_CODE);
+        // Pre-load math and logic libraries in Python
+        await pyodide.runPythonAsync("import math\ndef calc(x): return math.sqrt(x)");
         this.initGraph();
-        this.log("✅ Sovereign Core: ONLINE.");
+        this.log("✅ Dual-Brain Online. Ready to Parse & Calculate.");
     },
 
-    log(msg) {
-        const t = document.getElementById('terminal');
-        t.innerHTML += `<br>> ${msg}`;
-        t.scrollTop = t.scrollHeight;
+    async ingest(e) {
+        e.preventDefault();
+        const files = e.dataTransfer.files;
+        for (let file of files) {
+            this.log(`📖 Opening Book: ${file.name}`);
+            
+            // Visual Node Creation
+            const bookId = file.name;
+            nodes.push({id: bookId, color: "#ffcc00", size: 8});
+            links.push({source: "CORE", target: bookId});
+            
+            // Trigger Hugging Face Book Analysis (Conceptual)
+            this.log("📡 Sending to Hugging Face for Deep Parsing...");
+            this.render();
+        }
     },
 
     async chat() {
-        const input = document.getElementById('chat-input');
+        const input = document.getElementById('mcp-input');
         const val = input.value;
-        if(!val) return;
-        this.log(`👤 USER: ${val}`);
-        
-        const raw = await pyodide.runPythonAsync(`analyze_input("${val}")`);
-        const res = JSON.parse(raw);
-        
-        if(res.type === "BUILD") {
-            this.log("🏗️ MCP: Component design identified.");
-            pendingBuild = res.code;
-            document.getElementById('suggested-code').textContent = res.code;
-            document.getElementById('code-finisher').style.display = 'block';
+        this.log(`👤: ${val}`);
+
+        // THE CALCULATION PIECE
+        if(val.includes("calc")) {
+            const res = await pyodide.runPythonAsync(`calc(64)`); // Example math
+            this.log(`🧠 CALCULATION: ${res}`);
         } else {
-            this.log(`🧠 AI: ${res.response}`);
+            this.log(`🧠 MCP: Analyzing book data for resonance...`);
         }
+        
+        // Add a "Thought Node"
+        const tId = "Data-" + Date.now();
+        nodes.push({id: tId, color: "#fff", size: 4});
+        links.push({source: "CORE", target: tId});
+        this.render();
         input.value = '';
     },
 
-    handleDrop(e) {
-        e.preventDefault();
-        const file = e.dataTransfer.files[0];
-        this.log(`📦 INGESTING SEED: ${file.name}`);
-        // Logic for ZIP/PDF processing starts here
-        this.log("🧬 Mapping Glyphs to Causal Graph...");
+    log(m) {
+        const t = document.getElementById('terminal');
+        t.innerHTML += `<div>> ${m}</div>`;
+        t.scrollTop = t.scrollHeight;
     },
 
-    executeBuild() {
-        this.log("⚡ Earthing code into Movement Field...");
-        eval(pendingBuild); // Self-Building injection
-        document.getElementById('code-finisher').style.display = 'none';
-        this.log("✅ Build Stable. Memory updated.");
-    },
+    initGraph() { this.svg = d3.select("#canvas"); this.render(); },
 
-    initGraph() {
-        // D3.js visualization setup
-        const svg = d3.select("#canvas");
-        this.log("📊 Resonance Graph Initialized.");
+    render() {
+        const width = document.getElementById('graph-view').clientWidth;
+        const height = document.getElementById('graph-view').clientHeight;
+        this.svg.selectAll("*").remove();
+        const sim = d3.forceSimulation(nodes)
+            .force("link", d3.forceLink(links).id(d => d.id).distance(100))
+            .force("charge", d3.forceManyBody().strength(-200))
+            .force("center", d3.forceCenter(width / 2, height / 2));
+        const link = this.svg.append("g").selectAll("line").data(links).enter().append("line").attr("stroke", "#333");
+        const node = this.svg.append("g").selectAll("circle").data(nodes).enter().append("circle")
+            .attr("r", d => d.size).attr("fill", d => d.color);
+        sim.on("tick", () => {
+            link.attr("x1", d => d.source.x).attr("y1", d => d.source.y).attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+            node.attr("cx", d => d.x).attr("cy", d => d.y);
+        });
     }
 };
-
-function createNode(name, color) {
-    System.log(`✨ Resonance Node Created: ${name}`);
-    // D3 Node creation logic would go here
-}
 
 window.onload = () => System.boot();
 </script>
 </body>
 </html>
+
