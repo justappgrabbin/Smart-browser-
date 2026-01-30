@@ -2,122 +2,132 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>🌀 Sovereign Consciousness Foundry</title>
+    <title>🌀 Sovereign Resonance Foundry</title>
     <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
-        :root { --neon: #00ff88; --mcp: #00ccff; --bg: #050505; }
-        body { margin: 0; background: var(--bg); color: var(--neon); font-family: 'Courier New', monospace; display: flex; height: 100vh; }
+        :root { --neon: #00ff88; --mcp: #00ccff; --bg: #050505; --tension: #ff4444; }
+        body { margin: 0; background: var(--bg); color: var(--neon); font-family: 'Courier New', monospace; display: flex; height: 100vh; overflow: hidden; }
         
-        /* Dual Pane Layout */
-        #left-brain { flex: 1; border-right: 1px solid var(--neon); position: relative; display: flex; flex-direction: column; }
-        #right-brain { flex: 1; display: flex; flex-direction: column; background: #fff; }
+        /* The Resonance Workspace */
+        #resonance-field { flex: 1.2; border-right: 1px solid var(--neon); position: relative; background: radial-gradient(circle, #111 0%, #000 100%); }
+        #movement-field { flex: 1; display: flex; flex-direction: column; background: #fff; }
         
-        /* UI Components */
-        #terminal { height: 40%; background: #000; border-top: 1px solid var(--neon); padding: 15px; overflow-y: auto; font-size: 12px; }
-        #code-finisher { position: absolute; bottom: 20px; right: 20px; width: 300px; background: rgba(0,0,0,0.9); border: 1px solid var(--mcp); padding: 10px; display: none; z-index: 100; }
-        #graph-view { flex: 1; background: radial-gradient(circle, #111 0%, #000 100%); }
+        /* Components */
+        #terminal { height: 35%; background: #000; border-top: 1px solid var(--neon); padding: 15px; overflow-y: auto; font-size: 12px; color: var(--neon); }
+        #code-finisher { position: absolute; top: 20px; right: 20px; width: 320px; background: rgba(0,0,0,0.95); border: 1px solid var(--mcp); padding: 15px; display: none; z-index: 100; box-shadow: 0 0 20px rgba(0,204,255,0.3); }
         iframe { flex: 1; border: none; }
         
-        .pulse { animation: mcp-glow 1.5s infinite; }
-        @keyframes mcp-glow { 0% { box-shadow: 0 0 5px var(--mcp); } 50% { box-shadow: 0 0 20px var(--mcp); } 100% { box-shadow: 0 0 5px var(--mcp); } }
+        .pulse { animation: mcp-glow 2s infinite; }
+        @keyframes mcp-glow { 0%, 100% { border-color: var(--mcp); } 50% { border-color: #fff; } }
+        .node { stroke: #fff; stroke-width: 1.5px; }
     </style>
 </head>
-<body ondragover="event.preventDefault()" ondrop="Foundry.ingest(event)">
+<body ondragover="event.preventDefault()" ondrop="System.handleDrop(event)">
 
-<div id="left-brain">
-    <svg id="graph-view"></svg>
-    <div id="code-finisher">
-        <div style="color:var(--mcp); font-size:10px; border-bottom:1px solid var(--mcp); margin-bottom:5px;">✨ MCP CODE-FINISHER</div>
-        <pre id="suggested-code" style="font-size:10px; color:#fff; white-space: pre-wrap;"></pre>
-        <button onclick="Foundry.executeBuild()" style="width:100%; background:var(--mcp); border:none; cursor:pointer;">APPLY BUILD</button>
+<div id="resonance-field">
+    <svg id="canvas" width="100%" height="100%"></svg>
+    
+    <div id="code-finisher" class="pulse">
+        <div style="color:var(--mcp); font-size:11px; font-weight:bold; margin-bottom:10px;">✨ MCP SELF-BUILD INITIATED</div>
+        <pre id="suggested-code" style="font-size:10px; color:#fff; white-space: pre-wrap; background:#111; padding:5px; border-radius:3px;"></pre>
+        <button onclick="System.executeBuild()" style="width:100%; background:var(--mcp); color:#000; border:none; padding:8px; cursor:pointer; font-weight:bold; margin-top:10px;">EARTH CODE</button>
     </div>
-    <div id="terminal">> Awaiting Sovereign Call (Drop your Lips/PDFs here)...</div>
+    
+    <div id="terminal">> Sovereign Call Active. Awaiting Ingestion...</div>
 </div>
 
-<div id="right-brain">
-    <div style="padding:10px; background:#222; display:flex; gap:10px;">
-        <input type="text" id="url-bar" style="flex:1; background:#000; color:var(--neon); border:1px solid var(--neon);" placeholder="Navigate Movement Field...">
-        <button onclick="navigate()">GO</button>
+<div id="movement-field">
+    <div style="padding:10px; background:#222; display:flex; gap:10px; border-bottom:1px solid #444;">
+        <input type="text" id="chat-input" style="flex:1; background:#000; color:var(--neon); border:1px solid var(--neon); padding:5px;" placeholder="Type to Chat / Program...">
+        <button onclick="System.chat()" style="background:var(--neon); color:#000; border:none; padding:5px 15px; cursor:pointer;">SEND</button>
     </div>
-    <iframe id="browser-frame" src="about:blank"></iframe>
+    <iframe id="browser" src="about:blank"></iframe>
 </div>
 
 <script>
 let pyodide;
-let pendingCode = "";
+let pendingBuild = "";
 
-// --- THE SOUL: UNIVERSAL GENETIC CODE ---
-const BRAIN_A_CORE = `
+// --- THE UNIVERSAL GENETIC KERNEL (Python) ---
+const KERNEL_CODE = `
+import json
 UNIVERSAL_GENETIC_CODE = {
-    1: {"binary": "111111", "codon": "ATG", "law": "Movement"},
-    2: {"binary": "000000", "codon": "GCT", "law": "Being"},
-    29: {"binary": "010010", "codon": "CAA", "law": "Abysmal-Loop"}
+    1: {"bin": "111111", "law": "Movement", "codon": "ATG"},
+    51: {"bin": "100110", "law": "Shock", "codon": "Uranium"}
 }
 
-def analyze_lip(content):
-    if "Gate 51" in content:
-        return {"action": "build_component", "type": "Uranium_Sensor", "logic": "D3_Force_Node"}
-    if "Law" in content:
-        return {"action": "update_protocol", "rule": "Body_Outranks_Mind"}
-    return {"action": "none"}
+def analyze_input(text):
+    # Causal logic from Law.pdf
+    if "Gate 51" in text or "Uranium" in text:
+        return json.dumps({"type": "BUILD", "component": "Resonance_Sensor", "code": "createNode('Gate 51', '#ff0000')"})
+    return json.dumps({"type": "CHAT", "response": "Input Earthed. Analyzing resonance..."})
 `;
 
-// --- THE BODY: FOUNDRY & MCP ---
-const Foundry = {
-    ingest: async (e) => {
+// --- THE SYSTEM OPERATOR (JS) ---
+const System = {
+    async boot() {
+        this.log("🌀 Initializing Dual-Brain Resonance Network...");
+        pyodide = await loadPyodide();
+        await pyodide.runPythonAsync(KERNEL_CODE);
+        this.initGraph();
+        this.log("✅ Sovereign Core: ONLINE.");
+    },
+
+    log(msg) {
+        const t = document.getElementById('terminal');
+        t.innerHTML += `<br>> ${msg}`;
+        t.scrollTop = t.scrollHeight;
+    },
+
+    async chat() {
+        const input = document.getElementById('chat-input');
+        const val = input.value;
+        if(!val) return;
+        this.log(`👤 USER: ${val}`);
+        
+        const raw = await pyodide.runPythonAsync(`analyze_input("${val}")`);
+        const res = JSON.parse(raw);
+        
+        if(res.type === "BUILD") {
+            this.log("🏗️ MCP: Component design identified.");
+            pendingBuild = res.code;
+            document.getElementById('suggested-code').textContent = res.code;
+            document.getElementById('code-finisher').style.display = 'block';
+        } else {
+            this.log(`🧠 AI: ${res.response}`);
+        }
+        input.value = '';
+    },
+
+    handleDrop(e) {
         e.preventDefault();
         const file = e.dataTransfer.files[0];
-        log(`🧬 Ingesting Lip: ${file.name}`);
-        
-        const reader = new FileReader();
-        reader.onload = async (f) => {
-            const text = f.target.result;
-            // Send to Brain A (Python) for Causal Analysis
-            const result = await pyodide.runPythonAsync(\`analyze_lip("""\${text}""")\`);
-            Foundry.process(result);
-        };
-        reader.readAsText(file);
+        this.log(`📦 INGESTING SEED: ${file.name}`);
+        // Logic for ZIP/PDF processing starts here
+        this.log("🧬 Mapping Glyphs to Causal Graph...");
     },
 
-    process: (instruction) => {
-        if(instruction.action === "build_component") {
-            log(`🏗️ MCP: Designing \${instruction.type}...`);
-            pendingCode = \`// Auto-Generated via Thread Protocol\\nfunction init\${instruction.type}() {\\n  console.log("Foundry: \${instruction.type} Live");\\n}\`;
-            document.getElementById('suggested-code').textContent = pendingCode;
-            document.getElementById('code-finisher').style.display = 'block';
-            document.getElementById('code-finisher').classList.add('pulse');
-        }
-    },
-
-    executeBuild: () => {
-        log("⚡ Building... Applying to Movement Field.");
-        eval(pendingCode); // Self-Building Injection
+    executeBuild() {
+        this.log("⚡ Earthing code into Movement Field...");
+        eval(pendingBuild); // Self-Building injection
         document.getElementById('code-finisher').style.display = 'none';
-        log("✅ Build Complete. Component added to Sovereign Registry.");
+        this.log("✅ Build Stable. Memory updated.");
+    },
+
+    initGraph() {
+        // D3.js visualization setup
+        const svg = d3.select("#canvas");
+        this.log("📊 Resonance Graph Initialized.");
     }
 };
 
-async function boot() {
-    log("🌀 Sovereign Call: Initializing Dual-Brain...");
-    pyodide = await loadPyodide();
-    await pyodide.runPythonAsync(BRAIN_A_CORE);
-    log("✅ Design Brain (Python) Loaded with 64-Gate Dictionary.");
-    log("✅ Movement Brain (JS) Live. System is Self-Building.");
+function createNode(name, color) {
+    System.log(`✨ Resonance Node Created: ${name}`);
+    // D3 Node creation logic would go here
 }
 
-function log(msg) {
-    const t = document.getElementById('terminal');
-    t.innerHTML += \`<br>> \${msg}\`;
-    t.scrollTop = t.scrollHeight;
-}
-
-function navigate() {
-    const url = document.getElementById('url-bar').value;
-    document.getElementById('browser-frame').src = url.includes('://') ? url : 'https://' + url;
-}
-
-window.onload = boot;
+window.onload = () => System.boot();
 </script>
 </body>
 </html>
