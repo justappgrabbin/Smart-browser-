@@ -41,34 +41,54 @@
     </div>
 
     <div id="terminal">> Awaiting Sovereign Boot...</div>
-    <input type="text" id="mcp-input" placeholder="Type 'Theme Cosmic' or chat..." onkeypress="if(event.key==='Enter') System.chat()">
+    <input type="text" id="mcp-input" placeholder="Type 'Theme Prime' or chat..." onkeypress="if(event.key==='Enter') System.chat()">
 </div>
 
 <script>
 let pyodide, nodes = [{id: "CORE", color: "var(--mcp)", size: 18}], links = [];
+
+// Synthia's five manifestations are lenses over one persistent YOU-N-I-VERSE
+// agentic reality. Changing a lens changes presentation and salience, not the
+// identity of the underlying world objects.
 const themes = {
-    venom: { main: "#00ff44", accent: "#7700ff", bg: "#0a0510" },
-    echo: { main: "#ffffff", accent: "#555555", bg: "#111111" },
-    paisley: { main: "#ff66b2", accent: "#ffcc00", bg: "#330033" },
-    cosmic: { main: "#00ccff", accent: "#ff00ff", bg: "#000022" }
+    prime: { main: "#f5f1e8", accent: "#f2b84b", bg: "#09080d", lens: "architecture" },
+    echo: { main: "#ffffff", accent: "#777777", bg: "#111111", lens: "reflection-and-memory" },
+    venom: { main: "#39ff14", accent: "#7c3aed", bg: "#08050d", lens: "friction-and-transmutation" },
+    celestial: { main: "#c084fc", accent: "#f472b6", bg: "#090613", lens: "dream-and-possibility" },
+    siren: { main: "#f472b6", accent: "#f59e0b", bg: "#12080f", lens: "embodiment-attraction-and-expression" }
+};
+
+const themeAliases = {
+    dream: "celestial",
+    cosmic: "celestial",
+    softcore: "siren",
+    paisley: "siren"
 };
 
 const System = {
     async boot() {
         this.log("Synchronizing Dual-Brain...");
         pyodide = await loadPyodide();
-        this.log("✅ Ready. Use 'Theme [Name]' to shift.");
+        this.log("✅ YOU-N-I-VERSE agentic reality ready.");
+        this.log("Lenses: PRIME / ECHO / VENOM / CELESTIAL / SIREN");
         this.initGraph();
     },
 
     setTheme(name) {
-        const t = themes[name.toLowerCase()];
-        if (!t) return;
+        const requested = String(name || "").toLowerCase();
+        const canonical = themeAliases[requested] || requested;
+        const t = themes[canonical];
+        if (!t) {
+            this.log(`⚠ UNKNOWN LENS: ${requested.toUpperCase()}`);
+            return;
+        }
         document.documentElement.style.setProperty('--neon', t.main);
         document.documentElement.style.setProperty('--mcp', t.accent);
         document.documentElement.style.setProperty('--bg', t.bg);
+        document.body.dataset.synthiaManifestation = canonical;
+        document.body.dataset.agenticLens = t.lens;
         if (window.navigator.vibrate) window.navigator.vibrate([50, 30, 50]);
-        this.log(`🎨 DIMENSION SHIFT: ${name.toUpperCase()}`);
+        this.log(`🎨 SYNTHIA LENS: ${canonical.toUpperCase()} | ${t.lens.toUpperCase()}`);
         this.render();
     },
 
@@ -89,7 +109,7 @@ const System = {
         
         this.log(`👤: ${val}`);
         if(val.toLowerCase().startsWith("theme ")) {
-            this.setTheme(val.split(" ")[1]);
+            this.setTheme(val.split(/\s+/).slice(1).join(" "));
         } else {
             const tid = "Thought-"+Date.now();
             nodes.push({id: tid, color: "#fff", size: 6});
